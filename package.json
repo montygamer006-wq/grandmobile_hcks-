@@ -1,0 +1,11 @@
+{
+  "name": "grandmobile-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "better-sqlite3": "^12.2.0"
+  }
+}
