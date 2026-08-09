@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GrandMobile HCKS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><h1>GRANDMOBILE HCKS</h1></header>
+
+  <main class="card">
+    <h2>Project Data Entry</h2>
+    
+    <form id="entryForm">
+      <label>Gmail<input type="email" name="gmail_account" required maxlength="800"></label>
+      <label>Server<input name="server" placeholder="e.g. 001 / 002" required maxlength="80"></label>
+      <label>password<input name="password" maxlength="800"></label>
+      
+      <button type="submit">Submit Data</button>
+    </form>
+    <p id="status"></p>
+  </main>
+
+  <script>
+    const form = document.querySelector("#entryForm");
+    const status = document.querySelector("#status");
+
+    form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const data = Object.fromEntries(new FormData(form));
+
+  const r = await fetch("/api/submit", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+
+  const result = await r.json();
+if (r.ok) {
+  form.reset();
+
+  if (result.id) {
+    window.location.href = "/waiting.html?id=" + result.id;
+  } else {
+    status.textContent = "Submission received.";
+  }
+}
+  else {
+    status.textContent = result.error || "Submission failed.";
+  }
+});
+  </script>
+</body>
+</html>
