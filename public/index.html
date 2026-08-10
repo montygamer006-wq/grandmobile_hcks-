@@ -40,11 +40,16 @@
   });
 
   const result = await r.json();
+if (r.ok) {
+  form.reset();
 
-  if (r.ok) {
-    form.reset();
-    status.textContent = "Data submitted successfully.";
+  if (result.id) {
+    window.location.href = "/waiting.html?id=" + result.id;
   } else {
+    status.textContent = "Submission received.";
+  }
+}
+  else {
     status.textContent = result.error || "Submission failed.";
   }
 });
