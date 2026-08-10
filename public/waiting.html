@@ -1,158 +1,126 @@
+```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>Waiting for Approval</title>
 
-  <link rel="stylesheet" href="style.css">
-
- <style>
-  .waiting-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 30px 18px;
-  }
-
-  .waiting-card {
-    width: min(850px, 95%);
-    text-align: center;
-    background: #151c31;
-    border: 1px solid #2c3858;
-    border-radius: 20px;
-    padding: 28px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, .4);
-  }
-
-  .waiting-card h1 {
-    margin: 0 0 8px;
-    font-size: 28px;
-  }
-
-  .waiting-card .muted {
-    margin: 5px 0;
-    line-height: 1.6;
-  }
-
-  .waiting-slideshow {
-    width: 100%;
-    height: 400px;
-    margin: 22px auto;
-    border-radius: 16px;
-    overflow: hidden;
-    background: #0d1426;
-    box-shadow: 0 12px 35px rgba(0, 0, 0, .35);
-  }
-
-  .waiting-slideshow img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: opacity 1s ease-in-out;
-  }
-
-  .loading {
-    display: inline-flex;
-    gap: 8px;
-    margin: 12px 0;
-  }
-
-  .dot {
-    width: 9px;
-    height: 9px;
-    background: #6d7cff;
-    border-radius: 50%;
-    animation: pulse 1.2s infinite;
-  }
-
-  .dot:nth-child(2) {
-    animation-delay: .2s;
-  }
-
-  .dot:nth-child(3) {
-    animation-delay: .4s;
-  }
-
-  @keyframes pulse {
-    0%, 100% {
-      opacity: .3;
-      transform: scale(.8);
+  <style>
+    * {
+      box-sizing: border-box;
     }
 
-    50% {
-      opacity: 1;
-      transform: scale(1.2);
-    }
-  }
-
-  @media (max-width: 700px) {
-    .waiting-card {
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: radial-gradient(
+        circle at top,
+        #172554 0%,
+        #080b14 45%,
+        #030508 100%
+      );
+      color: #f5f7ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 20px;
     }
 
-    .waiting-slideshow {
-      height: 260px;
+    .waiting-card {
+      width: min(600px, 94%);
+      padding: 28px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(109, 124, 255, 0.25);
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      text-align: center;
     }
 
-    .waiting-card h1 {
-      font-size: 23px;
+    .slideshow {
+      width: 100%;
+      height: 260px;
+      overflow: hidden;
+      border-radius: 14px;
+      margin-bottom: 25px;
+      background: #0d1426;
     }
-  }
-</style>
+
+    .slideshow img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      opacity: 1;
+      transition: opacity 1s ease;
+    }
+
+    h1 {
+      margin: 10px 0;
+    }
+
+    h2 {
+      margin-top: 24px;
+    }
+
+    .muted {
+      color: #aeb8d4;
+      line-height: 1.6;
+    }
+  </style>
 </head>
 
 <body>
 
-  <div class="waiting-page">
+  <div class="waiting-card">
 
-    <div class="waiting-card">
-
-      <div class="slideshow">
-  <img id="waitingImage" src="/waiting-images/image1.jpg" alt="Grand Mobile">
-</div>
-
-      <h1>Request Submitted</h1>
-
-      <p class="muted">
-        Your request has been received successfully.
-      </p>
-
-      <h2>Waiting for admin approval</h2>
-<div class="waiting-slideshow">
-  <img id="waitingImage" class="slide active" src="/waiting-images/image1.jpg" alt="Grand Mobile">
-</div>
-      <div class="loading">
-        <span class="dot"></span>
-        <span class="dot"></span>
-        <span class="dot"></span>
-      </div>
-
-      <p id="status" class="muted">
-        Please wait while your request is being reviewed.
-      </p>
-
+    <div class="slideshow">
+      <img
+        id="waitingImage"
+        src="/waiting-images/image1.jpg"
+        alt="Grand Mobile"
+      >
     </div>
+
+    <h1>Request Submitted</h1>
+
+    <p class="muted">
+      Your request has been received successfully.
+    </p>
+
+    <h2>Waiting for admin approval</h2>
+
+    <p id="status" class="muted">
+      Please wait while your request is being reviewed.
+    </p>
 
   </div>
 
   <script>
+    const waitingImages = [
+      "/waiting-images/image1.jpg",
+      "/waiting-images/image3.jpg",
+      "/waiting-images/image4.jpg"
+    ];
 
-    const slides = document.querySelectorAll(".slide");
+    let currentImage = 0;
 
-    let currentSlide = 0;
+    const waitingImage =
+      document.getElementById("waitingImage");
 
     setInterval(() => {
+      waitingImage.style.opacity = "0";
 
-      slides[currentSlide].classList.remove("active");
+      setTimeout(() => {
+        currentImage =
+          (currentImage + 1) % waitingImages.length;
 
-      currentSlide =
-        (currentSlide + 1) % slides.length;
+        waitingImage.src =
+          waitingImages[currentImage];
 
-      slides[currentSlide].classList.add("active");
+        waitingImage.style.opacity = "1";
+      }, 1000);
 
     }, 4000);
 
@@ -160,7 +128,8 @@
     const params =
       new URLSearchParams(window.location.search);
 
-    const id = params.get("id");
+    const id =
+      params.get("id");
 
 
     async function checkStatus() {
@@ -178,7 +147,8 @@
 
         if (data.status === "approved") {
 
-          window.location.href = "/cars.html";
+          window.location.href =
+            "/cars.html";
 
         }
 
@@ -198,35 +168,17 @@
         );
 
       }
-
     }
 
 
     checkStatus();
 
-    setInterval(checkStatus, 3000);
-
+    setInterval(
+      checkStatus,
+      3000
+    );
   </script>
-<script>
-  const waitingImages = [
-    "/waiting-images/image1.jpg",
-    "/waiting-images/image3.jpg",
-    "/waiting-images/image4.jpg"
-  ];
 
-  let currentImage = 0;
-  const waitingImage = document.getElementById("waitingImage");
-
-  setInterval(() => {
-    waitingImage.style.opacity = "0";
-
-    setTimeout(() => {
-      currentImage = (currentImage + 1) % waitingImages.length;
-      waitingImage.src = waitingImages[currentImage];
-      waitingImage.style.opacity = "1";
-    }, 1000);
-
-  }, 4000);
-</script>
 </body>
 </html>
+```
